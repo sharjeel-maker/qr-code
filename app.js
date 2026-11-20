@@ -1043,10 +1043,11 @@ function downloadQRCode(extension) {
           const a = document.createElement('a');
           a.href = dataUrl;
           a.download = filename;
+          a.target = '_blank';
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
-          showToast("Downloaded PNG!");
+          showToast("PNG Downloaded! Check Downloads / Photos");
         } catch (err) {
           console.warn("Canvas export error:", err);
           fallbackDownloadQR(extension, content, fg, bg);
