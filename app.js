@@ -664,8 +664,53 @@ function showResultSheet(res) {
     const btnCall = document.createElement('button');
     btnCall.className = 'btn-primary';
     btnCall.textContent = t.callNumber;
-    btnCall.onclick = () => window.open(`tel:${res.phoneNum}`, '_self');
+    btnCall.onclick = () => window.open(res.content.startsWith('tel:') ? res.content : `tel:${res.content}`, '_self');
     actionsContainer.appendChild(btnCall);
+  } else if (res.type === 'email') {
+    const btnEmail = document.createElement('button');
+    btnEmail.className = 'btn-primary';
+    btnEmail.textContent = t.writeEmail;
+    btnEmail.onclick = () => window.open(res.content.startsWith('mailto:') ? res.content : `mailto:${res.content}`, '_self');
+    actionsContainer.appendChild(btnEmail);
+  } else if (res.type === 'sms') {
+    const btnSms = document.createElement('button');
+    btnSms.className = 'btn-primary';
+    btnSms.textContent = t.sendSMS;
+    btnSms.onclick = () => {
+      let url = res.content;
+      if (url.startsWith('smsto:')) {
+        const parts = url.replace('smsto:', '').split(':');
+        url = `sms:${parts[0]}${parts[1] ? `?body=${encodeURIComponent(parts[1])}` : ''}`;
+      }
+      window.open(url, '_self');
+    };
+    actionsContainer.appendChild(btnSms);
+  } else if (res.type === 'whatsapp') {
+    const btnWa = document.createElement('button');
+    btnWa.className = 'btn-primary';
+    btnWa.textContent = t.openWhatsapp;
+    btnWa.onclick = () => {
+      let waUrl = res.content;
+      if (!waUrl.startsWith('http')) {
+        const cleaned = res.content.replace(/[^\d]/g, '');
+        waUrl = `https://wa.me/${cleaned}`;
+      }
+      window.open(waUrl, '_blank');
+    };
+    actionsContainer.appendChild(btnWa);
+  } else if (res.type === 'location') {
+    const btnMaps = document.createElement('button');
+    btnMaps.className = 'btn-primary';
+    btnMaps.textContent = t.openMaps;
+    btnMaps.onclick = () => {
+      let mapsUrl = res.content;
+      if (mapsUrl.startsWith('geo:')) {
+        const coords = mapsUrl.replace('geo:', '').split('?')[0];
+        mapsUrl = `https://maps.google.com/?q=${coords}`;
+      }
+      window.open(mapsUrl, '_blank');
+    };
+    actionsContainer.appendChild(btnMaps);
   } else if (res.type === 'barcode') {
     const btnSearch = document.createElement('button');
     btnSearch.className = 'btn-primary';
@@ -741,6 +786,12 @@ function renderCreateFormFields(type) {
         <label class="form-label">Website URL</label>
         <input type="url" id="inp-create-val" class="form-input" placeholder="https://example.com" value="https://example.com">
       </div>`;
+  } else if (type === 'text') {
+    fieldsHtml = `
+      <div class="form-group">
+        <label class="form-label">Text Content</label>
+        <textarea id="inp-create-val" class="form-textarea" placeholder="Type your text or note here..." rows="4"></textarea>
+      </div>`;
   } else if (type === 'wifi') {
     fieldsHtml = `
       <div class="form-group">
@@ -749,48 +800,187 @@ function renderCreateFormFields(type) {
       </div>
       <div class="form-group">
         <label class="form-label">Password</label>
-        <input type="password" id="inp-wifi-pass" class="form-input" placeholder="Password">
+        <input type="password" id="inp-wifi-pass" class="form-input" placeholder="Password (leave blank if open)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Encryption Type</label>
+        <select id="inp-wifi-type" class="form-select">
+          <option value="WPA">WPA/WPA2/WPA3</option>
+          <option value="WEP">WEP</option>
+          <option value="nopass">Open (No Password)</option>
+        </select>
       </div>`;
   } else if (type === 'contact') {
+    const supportsContactPicker = ('contacts' in navigator && 'ContactsManager' in window);
     fieldsHtml = `
+      ${supportsContactPicker ? `
+        <div style="margin-bottom: 12px;">
+          <button type="button" id="btn-pick-contact" class="btn-secondary" style="width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Pick from Device Contacts
+          </button>
+        </div>` : ''}
       <div class="form-group">
         <label class="form-label">Full Name</label>
         <input type="text" id="inp-c-name" class="form-input" placeholder="John Doe">
       </div>
       <div class="form-group">
-        <label class="form-label">Phone</label>
-        <input type="tel" id="inp-c-phone" class="form-input" placeholder="+123456789">
+        <label class="form-label">Phone Number</label>
+        <input type="tel" id="inp-c-phone" class="form-input" placeholder="+1 234 567 8900">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" id="inp-c-email" class="form-input" placeholder="john@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Company / Organization</label>
+        <input type="text" id="inp-c-org" class="form-input" placeholder="Acme Inc.">
       </div>`;
-  } else {
+  } else if (type === 'phone') {
     fieldsHtml = `
       <div class="form-group">
-        <label class="form-label">Content</label>
-        <textarea id="inp-create-val" class="form-textarea" placeholder="Enter text here..."></textarea>
+        <label class="form-label">Phone Number</label>
+        <input type="tel" id="inp-phone-num" class="form-input" placeholder="+1 234 567 8900">
+      </div>`;
+  } else if (type === 'email') {
+    fieldsHtml = `
+      <div class="form-group">
+        <label class="form-label">Recipient Email</label>
+        <input type="email" id="inp-email-to" class="form-input" placeholder="recipient@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <input type="text" id="inp-email-sub" class="form-input" placeholder="Subject line">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Message Body</label>
+        <textarea id="inp-email-body" class="form-textarea" placeholder="Write your message here..."></textarea>
+      </div>`;
+  } else if (type === 'sms') {
+    fieldsHtml = `
+      <div class="form-group">
+        <label class="form-label">Recipient Phone Number</label>
+        <input type="tel" id="inp-sms-phone" class="form-input" placeholder="+1 234 567 8900">
+      </div>
+      <div class="form-group">
+        <label class="form-label">SMS Message</label>
+        <textarea id="inp-sms-body" class="form-textarea" placeholder="Type text message..."></textarea>
+      </div>`;
+  } else if (type === 'whatsapp') {
+    fieldsHtml = `
+      <div class="form-group">
+        <label class="form-label">WhatsApp Phone Number (with Country Code)</label>
+        <input type="tel" id="inp-wa-phone" class="form-input" placeholder="+12345678900">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pre-filled Message (Optional)</label>
+        <textarea id="inp-wa-msg" class="form-textarea" placeholder="Hello! I'm reaching out regarding..."></textarea>
+      </div>`;
+  } else if (type === 'location') {
+    fieldsHtml = `
+      <div style="margin-bottom: 12px;">
+        <button type="button" id="btn-curr-loc" class="btn-secondary" style="width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>
+          Use Current GPS Location
+        </button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Latitude</label>
+        <input type="number" step="any" id="inp-loc-lat" class="form-input" placeholder="e.g. 25.2048">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Longitude</label>
+        <input type="number" step="any" id="inp-loc-lng" class="form-input" placeholder="e.g. 55.2708">
       </div>`;
   }
 
   container.innerHTML = fieldsHtml;
 
   // Add event listeners for live preview
-  container.querySelectorAll('input, textarea').forEach(inp => {
+  container.querySelectorAll('input, textarea, select').forEach(inp => {
     inp.addEventListener('input', updateQRPreview);
+    inp.addEventListener('change', updateQRPreview);
   });
+
+  // Contact Picker Handler
+  const btnPick = document.getElementById('btn-pick-contact');
+  if (btnPick) {
+    btnPick.addEventListener('click', async () => {
+      try {
+        const props = ['name', 'tel', 'email', 'icon'];
+        const contacts = await navigator.contacts.select(props, { multiple: false });
+        if (contacts && contacts.length > 0) {
+          const c = contacts[0];
+          if (c.name && c.name[0]) document.getElementById('inp-c-name').value = c.name[0];
+          if (c.tel && c.tel[0]) document.getElementById('inp-c-phone').value = c.tel[0];
+          if (c.email && c.email[0]) document.getElementById('inp-c-email').value = c.email[0];
+          updateQRPreview();
+          showToast("Contact loaded!");
+        }
+      } catch (err) {
+        console.warn("Contact pick error:", err);
+      }
+    });
+  }
+
+  // Location GPS Handler
+  const btnLoc = document.getElementById('btn-curr-loc');
+  if (btnLoc) {
+    btnLoc.addEventListener('click', () => {
+      if (navigator.geolocation) {
+        showToast("Fetching location...");
+        navigator.geolocation.getCurrentPosition((pos) => {
+          document.getElementById('inp-loc-lat').value = pos.coords.latitude.toFixed(6);
+          document.getElementById('inp-loc-lng').value = pos.coords.longitude.toFixed(6);
+          updateQRPreview();
+          showToast("Location updated!");
+        }, () => {
+          showToast("Could not access GPS location.");
+        });
+      }
+    });
+  }
 
   updateQRPreview();
 }
 
 function getCreateFormContent() {
   const type = state.activeCreateType;
-  if (type === 'wifi') {
+  if (type === 'website') {
+    return document.getElementById('inp-create-val')?.value || 'https://example.com';
+  } else if (type === 'wifi') {
     const ssid = document.getElementById('inp-wifi-ssid')?.value || '';
     const pass = document.getElementById('inp-wifi-pass')?.value || '';
-    return `WIFI:S:${ssid};T:WPA;P:${pass};;`;
+    const encType = document.getElementById('inp-wifi-type')?.value || 'WPA';
+    return `WIFI:S:${ssid};T:${encType};P:${pass};;`;
   } else if (type === 'contact') {
     const name = document.getElementById('inp-c-name')?.value || '';
     const phone = document.getElementById('inp-c-phone')?.value || '';
-    return `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL:${phone}\nEND:VCARD`;
+    const email = document.getElementById('inp-c-email')?.value || '';
+    const org = document.getElementById('inp-c-org')?.value || '';
+    return `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL:${phone}${email ? `\nEMAIL:${email}` : ''}${org ? `\nORG:${org}` : ''}\nEND:VCARD`;
+  } else if (type === 'phone') {
+    const num = document.getElementById('inp-phone-num')?.value || '';
+    return `tel:${num.replace(/\s+/g, '')}`;
+  } else if (type === 'email') {
+    const to = document.getElementById('inp-email-to')?.value || '';
+    const sub = encodeURIComponent(document.getElementById('inp-email-sub')?.value || '');
+    const body = encodeURIComponent(document.getElementById('inp-email-body')?.value || '');
+    return `mailto:${to}?subject=${sub}&body=${body}`;
+  } else if (type === 'sms') {
+    const phone = document.getElementById('inp-sms-phone')?.value || '';
+    const body = encodeURIComponent(document.getElementById('inp-sms-body')?.value || '');
+    return `smsto:${phone.replace(/\s+/g, '')}:${body}`;
+  } else if (type === 'whatsapp') {
+    const phone = (document.getElementById('inp-wa-phone')?.value || '').replace(/[^\d]/g, '');
+    const msg = encodeURIComponent(document.getElementById('inp-wa-msg')?.value || '');
+    return `https://wa.me/${phone}${msg ? `?text=${msg}` : ''}`;
+  } else if (type === 'location') {
+    const lat = document.getElementById('inp-loc-lat')?.value || '25.2048';
+    const lng = document.getElementById('inp-loc-lng')?.value || '55.2708';
+    return `https://maps.google.com/?q=${lat},${lng}`;
   } else {
-    return document.getElementById('inp-create-val')?.value || 'https://example.com';
+    return document.getElementById('inp-create-val')?.value || 'Sample text';
   }
 }
 
