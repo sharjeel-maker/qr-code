@@ -1,0 +1,12 @@
+node_modules/
+jdk/
+jdk21/
+gradle-dist/
+gradle-*.zip
+*.pem
+*.crt
+*.jks
+android/app/build/
+android/build/
+ScanCode.apk
+.DS_Store

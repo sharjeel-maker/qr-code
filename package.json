@@ -1,0 +1,25 @@
+{
+  "name": "qr-code",
+  "version": "1.0.0",
+  "description": "A simple, friendly, mobile-first QR & Barcode Scanner and Generator built as a Progressive Web App (PWA).",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sharjeel-maker/qr-code.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sharjeel-maker/qr-code/issues"
+  },
+  "homepage": "https://github.com/sharjeel-maker/qr-code#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
+  }
+}
