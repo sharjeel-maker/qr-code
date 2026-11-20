@@ -1011,41 +1011,102 @@ function updateQRPreview() {
 }
 
 function downloadQRCode(extension) {
-  if (!state.qrCodeStyling) {
-    updateQRPreview();
-  }
-
   const content = getCreateFormContent();
   const fg = document.getElementById('qr-color-fg').value;
   const bg = document.getElementById('qr-color-bg').value;
   const style = document.getElementById('qr-dot-style').value;
+  const filename = `qr-code-${Date.now()}.${extension}`;
 
-  // Use qrCodeStyling with explicit type based on requested extension
-  const tempStyling = new QRCodeStyling({
-    width: 1000,
-    height: 1000,
-    type: extension === 'svg' ? 'svg' : 'canvas',
-    data: content || "Sample",
-    dotsOptions: { color: fg, type: style },
-    backgroundOptions: { color: bg }
-  });
+  if (extension === 'png') {
+    // Canvas PNG Download
+    const tempContainer = document.createElement('div');
+    tempContainer.style.display = 'none';
+    document.body.appendChild(tempContainer);
 
-  tempStyling.download({ name: `qr-code-${Date.now()}`, extension: extension })
-    .catch(err => {
-      console.warn("QRCodeStyling download failed, using fallback download:", err);
-      fallbackDownloadQR(extension, content, fg, bg);
+    const tempStyling = new QRCodeStyling({
+      width: 1000,
+      height: 1000,
+      type: 'canvas',
+      data: content || "Sample",
+      dotsOptions: { color: fg, type: style },
+      backgroundOptions: { color: bg }
     });
+
+    tempStyling.append(tempContainer);
+
+    setTimeout(() => {
+      const canvas = tempContainer.querySelector('canvas');
+      if (canvas) {
+        try {
+          const dataUrl = canvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          showToast("Downloaded PNG!");
+        } catch (err) {
+          console.warn("Canvas export error:", err);
+          fallbackDownloadQR(extension, content, fg, bg);
+        }
+      } else {
+        fallbackDownloadQR(extension, content, fg, bg);
+      }
+      document.body.removeChild(tempContainer);
+    }, 100);
+  } else if (extension === 'svg') {
+    // SVG Blob Download
+    const tempContainer = document.createElement('div');
+    tempContainer.style.display = 'none';
+    document.body.appendChild(tempContainer);
+
+    const tempStyling = new QRCodeStyling({
+      width: 1000,
+      height: 1000,
+      type: 'svg',
+      data: content || "Sample",
+      dotsOptions: { color: fg, type: style },
+      backgroundOptions: { color: bg }
+    });
+
+    tempStyling.append(tempContainer);
+
+    setTimeout(() => {
+      const svgEl = tempContainer.querySelector('svg');
+      if (svgEl) {
+        const svgData = new XMLSerializer().serializeToString(svgEl);
+        const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast("Downloaded SVG!");
+      } else {
+        fallbackDownloadQR(extension, content, fg, bg);
+      }
+      document.body.removeChild(tempContainer);
+    }, 100);
+  }
 }
 
 function fallbackDownloadQR(extension, content, fg, bg) {
   const container = document.getElementById('qr-preview-canvas');
   const canvas = container.querySelector('canvas');
+  const filename = `qr-code-${Date.now()}.${extension}`;
+
   if (canvas && extension === 'png') {
     const dataUrl = canvas.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = dataUrl;
-    a.download = `qr-code-${Date.now()}.png`;
+    a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     showToast("Downloaded PNG!");
     return;
   }
@@ -1057,27 +1118,13 @@ function fallbackDownloadQR(extension, content, fg, bg) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `qr-code-${Date.now()}.svg`;
+    a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     showToast("Downloaded SVG!");
     return;
-  }
-
-  // Final fallback using standalone canvas rendering
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = 600;
-  tempCanvas.height = 600;
-  const ctx = tempCanvas.getContext('2d');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, 600, 600);
-  
-  if (canvas) {
-    ctx.drawImage(canvas, 0, 0, 600, 600);
-    const a = document.createElement('a');
-    a.href = tempCanvas.toDataURL('image/png');
-    a.download = `qr-code-${Date.now()}.png`;
-    a.click();
-    showToast("Downloaded PNG!");
   }
 }
 
