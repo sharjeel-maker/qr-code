@@ -821,8 +821,73 @@ function updateQRPreview() {
 }
 
 function downloadQRCode(extension) {
-  if (state.qrCodeStyling) {
-    state.qrCodeStyling.download({ name: "qr-code", extension: extension });
+  if (!state.qrCodeStyling) {
+    updateQRPreview();
+  }
+
+  const content = getCreateFormContent();
+  const fg = document.getElementById('qr-color-fg').value;
+  const bg = document.getElementById('qr-color-bg').value;
+  const style = document.getElementById('qr-dot-style').value;
+
+  // Use qrCodeStyling with explicit type based on requested extension
+  const tempStyling = new QRCodeStyling({
+    width: 1000,
+    height: 1000,
+    type: extension === 'svg' ? 'svg' : 'canvas',
+    data: content || "Sample",
+    dotsOptions: { color: fg, type: style },
+    backgroundOptions: { color: bg }
+  });
+
+  tempStyling.download({ name: `qr-code-${Date.now()}`, extension: extension })
+    .catch(err => {
+      console.warn("QRCodeStyling download failed, using fallback download:", err);
+      fallbackDownloadQR(extension, content, fg, bg);
+    });
+}
+
+function fallbackDownloadQR(extension, content, fg, bg) {
+  const container = document.getElementById('qr-preview-canvas');
+  const canvas = container.querySelector('canvas');
+  if (canvas && extension === 'png') {
+    const dataUrl = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `qr-code-${Date.now()}.png`;
+    a.click();
+    showToast("Downloaded PNG!");
+    return;
+  }
+  
+  const svgEl = container.querySelector('svg');
+  if (svgEl && extension === 'svg') {
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `qr-code-${Date.now()}.svg`;
+    a.click();
+    showToast("Downloaded SVG!");
+    return;
+  }
+
+  // Final fallback using standalone canvas rendering
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = 600;
+  tempCanvas.height = 600;
+  const ctx = tempCanvas.getContext('2d');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 600, 600);
+  
+  if (canvas) {
+    ctx.drawImage(canvas, 0, 0, 600, 600);
+    const a = document.createElement('a');
+    a.href = tempCanvas.toDataURL('image/png');
+    a.download = `qr-code-${Date.now()}.png`;
+    a.click();
+    showToast("Downloaded PNG!");
   }
 }
 
