@@ -341,11 +341,22 @@ function initScanner() {
   startCameraScanner();
 }
 
-function startCameraScanner() {
+async function startCameraScanner() {
   document.getElementById('perm-overlay').style.display = 'none';
 
   if (!state.html5QrcodeScanner) {
     state.html5QrcodeScanner = new Html5Qrcode("reader-container");
+  }
+
+  // First request getUserMedia permission directly if mediaDevices is available
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      // Release initial stream so html5Qrcode can take control
+      stream.getTracks().forEach(track => track.stop());
+    } catch (err) {
+      console.warn("Camera permission request failed or rejected:", err);
+    }
   }
 
   const config = {
@@ -370,8 +381,8 @@ function startCameraScanner() {
     if (err && err.toString().includes("NotAllowedError")) {
       document.getElementById('perm-help-text').style.display = 'block';
       document.getElementById('perm-help-text').textContent = state.language === 'ar' ? 
-        "يرجى تمكين إذن الكاميرا من إعدادات المتصفح." : 
-        "Please enable camera permissions in your browser settings.";
+        "يرجى تمكين إذن الكاميرا من إعدادات الجهاز أو المتصفح." : 
+        "Please enable camera permissions in your device or browser settings.";
     }
   });
 }
