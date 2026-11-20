@@ -769,6 +769,7 @@ function initCreateScreen() {
 
   document.getElementById('btn-download-png').addEventListener('click', () => downloadQRCode('png'));
   document.getElementById('btn-download-svg').addEventListener('click', () => downloadQRCode('svg'));
+  document.getElementById('btn-share-qr-img').addEventListener('click', shareQRImage);
   document.getElementById('btn-save-created').addEventListener('click', saveCreatedQRCode);
 
   renderCreateFormFields('website');
@@ -1128,6 +1129,45 @@ function fallbackDownloadQR(extension, content, fg, bg) {
   }
 }
 
+async function shareQRImage() {
+  const container = document.getElementById('qr-preview-canvas');
+  const canvas = container.querySelector('canvas');
+  
+  if (!canvas) {
+    showToast("Generating preview...");
+    return;
+  }
+
+  canvas.toBlob(async (blob) => {
+    if (!blob) {
+      showToast("Could not prepare image");
+      return;
+    }
+
+    const file = new File([blob], `qr-code-${Date.now()}.png`, { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'QR Code',
+          text: 'Here is your generated QR Code'
+        });
+        showToast("Shared successfully!");
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn("Share failed:", err);
+          downloadQRCode('png');
+        }
+      }
+    } else {
+      // Fallback if native file sharing is not supported
+      downloadQRCode('png');
+      showToast("Downloading image file to Gallery...");
+    }
+  }, 'image/png');
+}
+
 function saveCreatedQRCode() {
   const content = getCreateFormContent();
   const item = {
@@ -1141,7 +1181,7 @@ function saveCreatedQRCode() {
   };
 
   saveToHistory(item, 'created');
-  showToast(i18n[state.language].saved);
+  showToast("Saved to App History! (Tap PNG to save to Photos)");
 }
 
 // 4) HISTORY ENGINE
